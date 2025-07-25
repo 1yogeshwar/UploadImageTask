@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiple Document Upload</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Multiple Document Upload Feature</h1>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <h2>Image Upload with Orientation Selection</h2>
+            <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+                <div class="upload-container">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="imageFile" name="image" accept=".jpg,.jpeg,.png" required>
+                        <label for="imageFile" class="file-label">
+                            <span>Choose Image</span>
+                            <small>JPG, JPEG, PNG (Max 5MB)</small>
+                        </label>
+                    </div>
+                    
+                    <div class="orientation-selector">
+                        <h3>Select Orientation:</h3>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="orientation" value="landscape" required>
+                                <span class="radio-custom"></span>
+                                Landscape
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="orientation" value="portrait" required>
+                                <span class="radio-custom"></span>
+                                Portrait
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="upload-btn">Upload Image</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- View Toggle -->
+        <% if (images.length > 0) { %>
+        <section class="view-controls">
+            <h2>Image Listing with Dynamic Positioning</h2>
+            <div class="view-toggle">
+                <button class="toggle-btn <%= viewType === 'grid' ? 'active' : '' %>" onclick="switchView('grid')">
+                    Grid View
+                </button>
+                <button class="toggle-btn <%= viewType === 'linear' ? 'active' : '' %>" onclick="switchView('linear')">
+                    Linear View
+                </button>
+            </div>
+        </section>
+
+        <!-- Images Display -->
+        <section class="images-section">
+            <% if (viewType === 'grid') { %>
+                <div class="grid-container <%= images[0] && images[0].orientation === 'landscape' ? 'landscape-first' : 'portrait-first' %>">
+                    <% 
+                    // Create grid positions array for up to 10 images
+                    let gridPositions = new Array(10).fill(null);
+                    images.forEach(image => {
+                        if (image.position <= 10) {
+                            gridPositions[image.position - 1] = image;
+                        }
+                    });
+                    %>
+                    <% gridPositions.forEach((image, index) => { %>
+                        <div class="grid-item <%= image ? (image.orientation === 'landscape' ? 'landscape' : 'portrait') : 'empty' %> position-<%= index + 1 %>" data-position="<%= index + 1 %>">
+                            <% if (image) { %>
+                                <div class="image-wrapper">
+                                    <img src="<%= image.path %>" alt="<%= image.originalName %>">
+                                    <div class="image-overlay">
+                                        <div class="image-info">
+                                            <p class="position-label">Position <%= image.position %></p>
+                                            <p class="orientation-label"><%= image.orientation %></p>
+                                            <p class="image-name"><%= image.originalName %></p>
+                                        </div>
+                                        <button class="delete-btn" onclick="deleteImage('<%= image.id %>')">×</button>
+                                    </div>
+                                </div>
+                            <% } else { %>
+                                <div class="empty-slot">
+                                    <span><%= index + 1 %></span>
+                                </div>
+                            <% } %>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <div class="linear-container">
+                    <% images.forEach((image, index) => { %>
+                        <div class="linear-item">
+                            <div class="linear-content">
+                                <div class="linear-image">
+                                    <img src="<%= image.path %>" alt="<%= image.originalName %>">
+                                </div>
+                                <div class="linear-info">
+                                    <h4><%= image.originalName %></h4>
+                                    <p><strong>Orientation:</strong> <%= image.orientation %></p>
+                                    <p><strong>Grid Position:</strong> <%= image.position %></p>
+                                    <p><strong>Upload Order:</strong> <%= index + 1 %></p>
+                                    <button class="delete-btn-linear" onclick="deleteImage('<%= image.id %>')">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </section>
+        <% } else { %>
+        <section class="empty-state">
+            <div class="empty-message">
+                <h3>No images uploaded yet</h3>
+                <p>Upload your first image to see the dynamic positioning in action!</p>
+            </div>
+        </section>
+        <% } %>
+    </div>
+
+    <script>
+        function switchView(viewType) {
+            window.location.href = `/?view=${viewType}`;
+        }
+
+        function deleteImage(imageId) {
+            if (confirm('Are you sure you want to delete this image?')) {
+                fetch(`/delete/${imageId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error deleting image');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting image');
+                });
+            }
+        }
+
+        // File input preview
+        document.getElementById('imageFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const label = e.target.nextElementSibling;
+            
+            if (file) {
+                label.querySelector('span').textContent = file.name;
+            } else {
+                label.querySelector('span').textContent = 'Choose Image';
+            }
+        });
+
+        // Show success message if uploaded
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('uploaded') === 'true') {
+            alert('Image uploaded successfully!');
+            // Remove the parameter from URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    </script>
+</body>
+</html>
